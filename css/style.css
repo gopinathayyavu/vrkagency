@@ -401,3 +401,28 @@ tr:hover td {
         grid-template-columns: 1fr;
     }
 }
+
+#titlebar {
+    background: black;
+    color: white;
+    height: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    -webkit-app-region: drag;
+}
+
+.window-controls button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 16px;
+    margin-left: 10px;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+
+.window-controls button:hover {
+    background: #333;
+}
