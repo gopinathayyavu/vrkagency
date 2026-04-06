@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRK AGENCY | Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="logo-area">
+                <h2>VRK AGENCY</h2>
+            </div>
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item active">Dashboard</a>
+                <a href="payments.html" class="nav-item">Payments</a>
+                <a href="customers.html" class="nav-item">Customers</a>
+            </nav>
+            <!-- <div class="sidebar-footer">
+                <small>Realtime DB</small>
+            </div> -->
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Dashboard</h1>
+                <div class="date-badge" id="liveDate"></div>
+            </header>
+
+            <div class="cards-grid">
+                <div class="stat-card">
+                    <div class="card-icon"><i class="fa fa-inr" style="font-size:24px"></i></div>
+                    <div class="card-info">
+                        <h3>Total Amount</h3>
+                        <p class="stat-number" id="totalAmount">₹0</p>
+                    </div>
+                </div>
+                <div class="stat-card success">
+                    <div class="card-icon"><i class="fa fa-check" style="font-size:24px"></i></div>
+                    <div class="card-info">
+                        <h3>Received Amount</h3>
+                        <p class="stat-number" id="receivedAmount">₹0</p>
+                    </div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="card-icon"><i class="fa fa-clock-o" style="font-size:24px"></i></div>
+                    <div class="card-info">
+                        <h3>Pending Amount</h3>
+                        <p class="stat-number" id="pendingAmount">₹0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="section-title">
+                    <h2><i class='fas fa-bell' style='font-size:24px'></i> Highly Pending Customers</h2>
+                    <span class="badge">sorted by pending</span>
+                </div>
+                <div class="responsive-table">
+                    <table id="pendingCustomersTable">
+                        <thead>
+                            <tr>
+                                <th>Customer Name</th>
+                                <th>Mobile</th>
+                                <th>Pending Amount</th>
+                                <th>Last Payment Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody">
+                            <tr>
+                                <td colspan="4" class="loading-row">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        (function () {
+            const db = window.firebaseDb;
+            const customersRef = db.ref('customers');
+            const paymentsRef = db.ref('payments');
+            const totalEl = document.getElementById('totalAmount');
+            const receivedEl = document.getElementById('receivedAmount');
+            const pendingEl = document.getElementById('pendingAmount');
+            const pendingTableBody = document.getElementById('pendingTableBody');
+
+            function formatINR(amount) { return '₹' + Number(amount).toLocaleString('en-IN'); }
+            function formatDate(ts) { return ts ? new Date(ts).toLocaleDateString() : '—'; }
+            function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function (m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+            function renderDashboard(customers, payments) {
+                let total = 0, received = 0, pending = 0;
+                const paymentsList = [];
+                for (let id in payments) {
+                    let p = payments[id];
+                    if (p && typeof p.amount === 'number') {
+                        paymentsList.push(p);
+                        total += p.amount;
+                        if (p.status === 'received') received += p.amount;
+                        else if (p.status === 'pending') pending += p.amount;
+                    }
+                }
+                totalEl.innerText = formatINR(total);
+                receivedEl.innerText = formatINR(received);
+                pendingEl.innerText = formatINR(pending);
+
+                const pendingPerCust = new Map();
+                const lastDatePerCust = new Map();
+                paymentsList.forEach(p => {
+                    const cid = p.customerId;
+                    if (!cid) return;
+                    if (p.status === 'pending') {
+                        pendingPerCust.set(cid, (pendingPerCust.get(cid) || 0) + p.amount);
+                    }
+                    if (p.date) {
+                        let cur = lastDatePerCust.get(cid) || 0;
+                        if (p.date > cur) lastDatePerCust.set(cid, p.date);
+                    }
+                });
+                const highPending = [];
+                for (let cid in customers) {
+                    let c = customers[cid];
+                    let pendingAmt = pendingPerCust.get(cid) || 0;
+                    if (pendingAmt > 0) {
+                        highPending.push({
+                            name: c.name || '?',
+                            mobile: c.mobile || '—',
+                            pending: pendingAmt,
+                            lastDate: lastDatePerCust.get(cid)
+                        });
+                    }
+                }
+                highPending.sort((a, b) => b.pending - a.pending);
+                if (highPending.length === 0) {
+                    pendingTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">✨ No pending dues</td></tr>';
+                    return;
+                }
+                let html = '';
+                highPending.forEach(h => {
+                    html += `<tr>
+            <td><strong>${escapeHtml(h.name)}</strong></td>
+            <td>${escapeHtml(h.mobile)}</td>
+            <td class="pending-amount">${formatINR(h.pending)}</td>
+            <td>${formatDate(h.lastDate)}</td>
+          </tr>`;
+                });
+                pendingTableBody.innerHTML = html;
+            }
+
+            let customersData = {}, paymentsData = {};
+            customersRef.on('value', snap => { customersData = snap.val() || {}; renderDashboard(customersData, paymentsData); });
+            paymentsRef.on('value', snap => { paymentsData = snap.val() || {}; renderDashboard(customersData, paymentsData); });
+
+            const dateSpan = document.getElementById('liveDate');
+            function updateDate() { dateSpan.innerText = new Date().toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }); }
+            updateDate(); setInterval(updateDate, 60000);
+        })();
+    </script>
+</body>
+
+</html>

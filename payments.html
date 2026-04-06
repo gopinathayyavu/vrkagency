@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRK AGENCY | Payments</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="js/firebase.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="logo-area"><h2>VRK AGENCY</h2></div>
+      <nav class="nav-menu">
+        <a href="index.html" class="nav-item">Dashboard</a>
+        <a href="payments.html" class="nav-item active">Payments</a>
+        <a href="customers.html" class="nav-item">Customers</a>
+      </nav>
+      <!-- <div class="sidebar-footer"><small>Realtime DB</small></div> -->
+    </aside>
+    <main class="main-content">
+      <header class="top-bar"><h1>Payments</h1><button class="btn-primary" id="openAddPaymentBtn">+ Add Payment</button></header>
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <input type="text" id="filterCustomerName" placeholder="Filter by customer name" class="filter-input">
+        <select id="filterStatus" class="filter-select">
+          <option value="all">All Status</option>
+          <option value="received">Received</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+
+      <!-- Payments Table -->
+      <div class="table-container">
+        <div class="responsive-table">
+          <table id="paymentsTable">
+            <thead><tr><th>Customer Name</th><th>Amount</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+            <tbody id="paymentsTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payment History Modal (hidden by default) -->
+      <div id="historyModal" class="modal">
+        <div class="modal-content">
+          <span class="close-modal">&times;</span>
+          <h3>Payment History: <span id="modalCustomerName"></span></h3>
+          <div class="responsive-table">
+            <table><thead><tr><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody id="historyList"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Payment Modal -->
+      <div id="addPaymentModal" class="modal">
+        <div class="modal-content">
+          <span class="close-modal" id="closeAddPayment">&times;</span>
+          <h3>Add New Payment</h3>
+          <form id="addPaymentForm">
+            <div class="form-group"><label>Customer *</label><select id="paymentCustomerId" required><option value="">-- Select Customer --</option></select></div>
+            <div class="form-group"><label>Amount (₹) *</label><input type="number" id="paymentAmount" required min="1" step="1"></div>
+            <div class="form-group"><label>Status *</label><select id="paymentStatus" required><option value="received">Received</option><option value="pending">Pending</option></select></div>
+            <button type="submit" class="btn-primary">Save Payment</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    (function() {
+      const db = window.firebaseDb;
+      const paymentsRef = db.ref('payments');
+      const customersRef = db.ref('customers');
+      let allPayments = [];
+      let customersList = [];
+
+      // DOM elements
+      const tableBody = document.getElementById('paymentsTableBody');
+      const filterName = document.getElementById('filterCustomerName');
+      const filterStatus = document.getElementById('filterStatus');
+      const addModal = document.getElementById('addPaymentModal');
+      const historyModal = document.getElementById('historyModal');
+      const openBtn = document.getElementById('openAddPaymentBtn');
+      const closeAdd = document.getElementById('closeAddPayment');
+      const closeHistory = document.querySelector('#historyModal .close-modal');
+      const customerSelect = document.getElementById('paymentCustomerId');
+      const addForm = document.getElementById('addPaymentForm');
+
+      function formatDate(ts) { return ts ? new Date(ts).toLocaleDateString() : '—'; }
+      function formatINR(amt) { return '₹' + Number(amt).toLocaleString('en-IN'); }
+      function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
+
+      function renderPaymentsTable() {
+        let nameFilter = filterName.value.trim().toLowerCase();
+        let statusFilter = filterStatus.value;
+        let filtered = allPayments.filter(p => {
+          let cust = customersList.find(c => c.id === p.customerId);
+          let custName = cust ? cust.name : '';
+          if(nameFilter && !custName.toLowerCase().includes(nameFilter)) return false;
+          if(statusFilter !== 'all' && p.status !== statusFilter) return false;
+          return true;
+        });
+        if(filtered.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="5">No payments found</td></tr>';
+          return;
+        }
+        let html = '';
+        filtered.forEach(p => {
+          let cust = customersList.find(c => c.id === p.customerId);
+          let custName = cust ? cust.name : 'Unknown';
+          html += `<tr data-payment-id="${p.id}">
+            <td><strong>${escapeHtml(custName)}</strong></td>
+            <td>${formatINR(p.amount)}</td>
+            <td><span class="status-badge ${p.status}">${p.status}</span></td>
+            <td>${formatDate(p.date)}</td>
+            <td><button class="btn-small view-history" data-customer="${p.customerId}" data-name="${escapeHtml(custName)}">History</button></td>
+          </tr>`;
+        });
+        tableBody.innerHTML = html;
+        document.querySelectorAll('.view-history').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            let custId = btn.getAttribute('data-customer');
+            let custName = btn.getAttribute('data-name');
+            showHistory(custId, custName);
+          });
+        });
+      }
+
+      function showHistory(customerId, customerName) {
+        const customerPayments = allPayments.filter(p => p.customerId === customerId);
+        const historyList = document.getElementById('historyList');
+        if(customerPayments.length === 0) {
+          historyList.innerHTML = '<tr><td colspan="3">No payments for this customer</td></tr>';
+        } else {
+          let html = '';
+          customerPayments.forEach(p => {
+            html += `<tr><td>${formatINR(p.amount)}</td><td><span class="status-badge ${p.status}">${p.status}</span></td><td>${formatDate(p.date)}</td></tr>`;
+          });
+          historyList.innerHTML = html;
+        }
+        document.getElementById('modalCustomerName').innerText = customerName;
+        historyModal.style.display = 'flex';
+      }
+
+      function loadCustomersForSelect() {
+        customersRef.once('value', snap => {
+          const custObj = snap.val() || {};
+          customersList = Object.entries(custObj).map(([id, data]) => ({ id, ...data }));
+          customerSelect.innerHTML = '<option value="">-- Select Customer --</option>' + customersList.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${c.mobile})</option>`).join('');
+        });
+      }
+
+      function loadPayments() {
+        paymentsRef.on('value', snap => {
+          const obj = snap.val() || {};
+          allPayments = Object.entries(obj).map(([id, data]) => ({ id, ...data }));
+          renderPaymentsTable();
+        });
+        customersRef.on('value', snap => {
+          const custObj = snap.val() || {};
+          customersList = Object.entries(custObj).map(([id, data]) => ({ id, ...data }));
+          renderPaymentsTable();
+          loadCustomersForSelect();
+        });
+      }
+
+      addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const customerId = document.getElementById('paymentCustomerId').value;
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        const status = document.getElementById('paymentStatus').value;
+        if(!customerId || isNaN(amount) || amount <= 0) return alert('Please fill all fields');
+        const selectedCust = customersList.find(c => c.id === customerId);
+        const newPayment = {
+          customerId: customerId,
+          customerName: selectedCust ? selectedCust.name : 'Unknown',
+          amount: amount,
+          status: status,
+          date: Date.now()
+        };
+        paymentsRef.push(newPayment).then(() => {
+          addModal.style.display = 'none';
+          addForm.reset();
+        }).catch(err => alert('Error: ' + err.message));
+      });
+
+      openBtn.onclick = () => { loadCustomersForSelect(); addModal.style.display = 'flex'; };
+      closeAdd.onclick = () => addModal.style.display = 'none';
+      closeHistory.onclick = () => historyModal.style.display = 'none';
+      window.onclick = (e) => { if(e.target === addModal) addModal.style.display = 'none'; if(e.target === historyModal) historyModal.style.display = 'none'; };
+      filterName.addEventListener('input', renderPaymentsTable);
+      filterStatus.addEventListener('change', renderPaymentsTable);
+      loadPayments();
+    })();
+  </script>
+</body>
+</html>

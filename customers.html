@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRK AGENCY | Customers</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="js/firebase.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="logo-area"><h2>VRK AGENCY</h2></div>
+      <nav class="nav-menu">
+        <a href="index.html" class="nav-item">Dashboard</a>
+        <a href="payments.html" class="nav-item">Payments</a>
+        <a href="customers.html" class="nav-item active">Customers</a>
+      </nav>
+      <!-- <div class="sidebar-footer"><small>Realtime DB</small></div> -->
+    </aside>
+    <main class="main-content">
+      <header class="top-bar"><h1>Customers</h1><button class="btn-primary" id="openAddCustomerBtn">+ Add Customer</button></header>
+      <div class="table-container">
+        <div class="responsive-table">
+          <table id="customersTable">
+            <thead><tr><th>Name</th><th>Mobile</th><th>Place</th></tr></thead>
+            <tbody id="customersTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="addCustomerModal" class="modal">
+        <div class="modal-content">
+          <span class="close-modal" id="closeAddCustomer">&times;</span>
+          <h3>Add New Customer</h3>
+          <form id="addCustomerForm">
+            <div class="form-group"><label>Name *</label><input type="text" id="custName" required></div>
+            <div class="form-group"><label>Mobile *</label><input type="tel" id="custMobile" required></div>
+            <div class="form-group"><label>Place</label><input type="text" id="custPlace"></div>
+            <button type="submit" class="btn-primary">Save Customer</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    (function() {
+      const db = window.firebaseDb;
+      const customersRef = db.ref('customers');
+      const tableBody = document.getElementById('customersTableBody');
+      const addModal = document.getElementById('addCustomerModal');
+      const openBtn = document.getElementById('openAddCustomerBtn');
+      const closeBtn = document.getElementById('closeAddCustomer');
+      const addForm = document.getElementById('addCustomerForm');
+
+      function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;': m==='<'?'&lt;':'&gt;'); }
+
+      function renderCustomers(snapshot) {
+        const customers = snapshot.val() || {};
+        const entries = Object.entries(customers);
+        if(entries.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="3">No customers yet. Add one!</td></tr>';
+          return;
+        }
+        let html = '';
+        entries.forEach(([id, cust]) => {
+          html += `<tr>
+            <td><strong>${escapeHtml(cust.name)}</strong></td>
+            <td>${escapeHtml(cust.mobile)}</td>
+            <td>${escapeHtml(cust.place) || '—'}</td>
+          </tr>`;
+        });
+        tableBody.innerHTML = html;
+      }
+
+      customersRef.on('value', renderCustomers);
+
+      openBtn.onclick = () => addModal.style.display = 'flex';
+      closeBtn.onclick = () => addModal.style.display = 'none';
+      window.onclick = (e) => { if(e.target === addModal) addModal.style.display = 'none'; };
+
+      addForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('custName').value.trim();
+        const mobile = document.getElementById('custMobile').value.trim();
+        const place = document.getElementById('custPlace').value.trim();
+        if(!name || !mobile) return alert('Name and Mobile are required');
+        const newCustomer = {
+          name: name,
+          mobile: mobile,
+          place: place || '',
+          createdAt: Date.now()
+        };
+        customersRef.push(newCustomer).then(() => {
+          addModal.style.display = 'none';
+          addForm.reset();
+        }).catch(err => alert('Error: ' + err.message));
+      });
+    })();
+  </script>
+</body>
+</html>
