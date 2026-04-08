@@ -104,6 +104,11 @@
   </div>
   <script src="js/app.js"></script>
   <script>
+    function goToPage(page) {
+      window.location.href = page;
+    }
+  </script>
+  <script>
     (function () {
       const db = window.firebaseDb;
       const paymentsRef = db.ref('payments');

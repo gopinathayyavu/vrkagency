@@ -122,6 +122,7 @@ body {
     font-size: 0.85rem;
     color: #4b5563;
 }
+
 .ref-badge {
     background: #f3f4f6;
     padding: 8px 18px;
@@ -421,4 +422,22 @@ tr:hover td {
     background: white;
     padding: 5px;
     border-radius: 24px;
+}
+
+.refresh-icon {
+    display: inline-block;
+}
+
+.rotate {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
