@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>VRK AGENCY | Add Payment</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="js/firebase.js"></script>
+</head>
+
+<body>
+
+    <div class="app-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <h2>VRK AGENCY</h2>
+            </div>
+            <nav class="nav-menu">
+                <a onclick="goToPage('index.html')" class="nav-item">Dashboard</a>
+                <a onclick="goToPage('payments.html')" class="nav-item active">Payments</a>
+                <a onclick="goToPage('customers.html')" class="nav-item">Customers</a>
+            </nav>
+        </aside>
+
+        <!-- Main -->
+        <main class="main-content">
+
+            <header class="top-bar">
+                <h1>Add Payment</h1>
+                <button class="btn-primary" onclick="goToPage('payments.html')">← Back</button>
+            </header>
+
+            <div class="form-container">
+
+                <form id="paymentForm">
+
+                    <!-- Customer Search -->
+                    <div class="form-group">
+                        <label>Customer *</label>
+                        <input type="text" id="searchCustomer" placeholder="Search name or mobile" class="filter-input">
+                        <div id="results" class="search-results"></div>
+                        <small id="selectedCustomerText"></small>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" id="date" class="filter-input" required>
+                    </div>
+
+                    <!-- Total Amount -->
+                    <div class="form-group">
+                        <label>Total Amount (₹) *</label>
+                        <input type="number" id="total" class="filter-input" required>
+                    </div>
+
+                    <!-- Payment Type -->
+                    <div class="form-group">
+                        <label>Payment Type *</label>
+                        <select id="type" class="filter-select">
+                            <option value="paid">Paid</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+
+                    <!-- Received Amount -->
+                    <div class="form-group" id="receivedGroup" style="display:none;">
+                        <label>Received Amount (₹)</label>
+                        <input type="number" id="received" class="filter-input">
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="form-group">
+                        <button type="submit" class="btn-primary">Save Payment</button>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <script>
+        function goToPage(p) { window.location.href = p; }
+
+        const db = window.firebaseDb;
+        const customersRef = db.ref('customers');
+        const paymentsRef = db.ref('payments');
+
+        let customers = [];
+        let selectedCustomer = null;
+
+        customersRef.once('value', snap => {
+            customers = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d }));
+        });
+
+        // 🔍 Search
+        document.getElementById('searchCustomer').oninput = function () {
+            let val = this.value.toLowerCase();
+            let html = "";
+
+            customers.filter(c =>
+                c.name.toLowerCase().includes(val) || c.mobile.includes(val)
+            ).forEach(c => {
+                html += `
+      <div class="search-item" onclick="selectCustomer('${c.id}')">
+        ${c.name} (${c.mobile})
+      </div>`;
+            });
+
+            document.getElementById('results').innerHTML = html;
+        };
+
+        // ✅ Select customer
+        function selectCustomer(id) {
+            selectedCustomer = customers.find(c => c.id === id);
+
+            document.getElementById('searchCustomer').value = selectedCustomer.name;
+            document.getElementById('results').innerHTML = "";
+            document.getElementById('selectedCustomerText').innerText =
+                "Selected: " + selectedCustomer.name + " (" + selectedCustomer.mobile + ")";
+        }
+
+        // 🔁 Payment type toggle
+        document.getElementById('type').onchange = function () {
+            document.getElementById('receivedGroup').style.display =
+                this.value === 'pending' ? 'block' : 'none';
+        };
+
+        // 💾 Save
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!selectedCustomer) return alert("Select customer");
+
+            let total = Number(document.getElementById('total').value);
+            let type = document.getElementById('type').value;
+            let received = type === 'paid'
+                ? total
+                : Number(document.getElementById('received').value);
+
+            let data = {
+                customerId: selectedCustomer.id,
+                totalAmount: total,
+                receivedAmount: received,
+                pendingAmount: total - received,
+                date: new Date(document.getElementById('date').value).getTime()
+            };
+
+            paymentsRef.push(data).then(() => {
+                alert("Payment Saved");
+                window.location.href = "payments.html";
+            });
+        });
+    </script>
+
+</body>
+
+</html>
