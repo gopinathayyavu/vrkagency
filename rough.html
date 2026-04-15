@@ -3,261 +3,205 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VRK AGENCY | Dashboard</title>
+    <title>VRK AGENCY | Add Payment</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Firebase CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 
 <body>
+
     <div class="app-layout">
+
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo-area">
                 <h2>VRK AGENCY</h2>
             </div>
             <nav class="nav-menu">
-                <a onclick="goToPage('index.html')" class="nav-item active">Dashboard</a>
-                <a onclick="goToPage('payments.html')" class="nav-item">Payments</a>
+                <a onclick="goToPage('index.html')" class="nav-item">Dashboard</a>
+                <a onclick="goToPage('payments.html')" class="nav-item active">Payments</a>
                 <a onclick="goToPage('customers.html')" class="nav-item">Customers</a>
             </nav>
-            <!-- <div class="sidebar-footer">
-                <small>Realtime DB</small>
-            </div> -->
         </aside>
 
+        <!-- Main -->
         <main class="main-content">
-            <header class="top-bar">
-                <h1>Dashboard</h1>
 
-                <div class="right-section">
-                    <div onclick="refreshPage()" class="ref-badge">
-                        <i class="fa fa-refresh refresh-icon"></i>
-                    </div>
-                    <div class="date-badge" id="liveDate"></div>
-                </div>
+            <header class="top-bar">
+                <h1>Add Payment</h1>
+                <button class="btn-primary" onclick="goToPage('payments.html')">← Back</button>
             </header>
 
-            <div class="cards-grid">
-                <div class="stat-card">
-                    <div class="card-icon"><i class="fa fa-inr" style="font-size:24px"></i></div>
-                    <div class="card-info">
-                        <h3>Total Amount</h3>
-                        <p class="stat-number" id="totalAmount">₹0</p>
+            <div class="form-wrapper">
+                <div class="form-card">
+
+                    <div class="form-header">
+                        <h2>Add New Payment</h2>
                     </div>
-                </div>
-                <div class="stat-card success">
-                    <div class="card-icon"><i class="fa fa-check" style="font-size:24px"></i></div>
-                    <div class="card-info">
-                        <h3>Received Amount</h3>
-                        <p class="stat-number" id="receivedAmount">₹0</p>
-                    </div>
-                </div>
-                <div class="stat-card warning">
-                    <div class="card-icon"><i class="fa fa-clock-o" style="font-size:24px"></i></div>
-                    <div class="card-info">
-                        <h3>Pending Amount</h3>
-                        <p class="stat-number" id="pendingAmount">₹0</p>
-                    </div>
+
+                    <form id="paymentForm">
+                        <div>
+                            <div class="row">
+                                <div class="col">
+                                    <!-- Customer -->
+                                    <div class="form-group">
+                                        <label>Customer *</label>
+                                        <input type="text" id="searchCustomer" placeholder="Search name or mobile">
+                                        <div id="results" class="search-results"></div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <!-- Date -->
+                                    <div class="form-group">
+                                        <label>Date *</label>
+                                        <input type="date" id="date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <!-- Total -->
+                                    <div class="form-group">
+                                        <label>Total Amount (₹) *</label>
+                                        <input type="number" id="total" required>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <!-- Radio -->
+                                    <div class="form-group">
+                                        <label>Payment Type *</label>
+
+                                        <div class="radio-group">
+                                            <label>
+                                                <input type="radio" name="type" value="paid" checked> Paid
+                                            </label>
+
+                                            <label>
+                                                <input type="radio" name="type" value="pending"> Pending
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+
+                        <!-- Received -->
+                        <div class="form-group" id="receivedGroup" style="display:none;">
+                            <label>Received Amount (₹)</label>
+                            <input type="number" id="received">
+                        </div>
+
+                        <button type="submit" class="btn-primary">Save Payment</button>
+
+                    </form>
+
                 </div>
             </div>
 
-            <div class="table-container">
-                <div class="section-title">
-                    <h2><i class='fas fa-bell' style='font-size:24px'></i> Highly Pending Customers</h2>
-                    <span class="badge">sorted by pending</span>
-                </div>
-                <div class="responsive-table">
-                    <table id="pendingCustomersTable">
-                        <thead>
-                            <tr>
-                                <th>Customer Name</th>
-                                <th>Mobile</th>
-                                <th>Pending Amount</th>
-                                <th>Last Payment Date</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendingTableBody">
-                            <tr>
-                                <td colspan="4" class="loading-row">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </main>
     </div>
 
-    <script src="js/app.js"></script>
     <script>
-        function goToPage(page) {
-            window.location.href = page;
-        }
-    </script>
-    <script>
-        document.querySelector('.ref-badge').addEventListener('click', function () {
-            location.reload();
+
+        // Restrict future dates
+        document.getElementById("date").max = new Date().toISOString().split("T")[0];
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            let selectedDate = new Date(document.getElementById('date').value);
+            let today = new Date();
+
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate > today) {
+                alert("Future date not allowed");
+                return;
+            }
+
+            // your existing code continues...
         });
-    </script>
-    <script>
-        function refreshPage() {
-            const icon = document.querySelector(".refresh-icon");
+        
+        function goToPage(p) { window.location.href = p; }
 
-            // Start spinning
-            icon.classList.add("rotate");
+        const db = window.firebaseDb;
+        const customersRef = db.ref('customers');
+        const paymentsRef = db.ref('payments');
 
-            // Reload after short delay
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        }
-    </script>
-    <script>
-        (function () {
+        let customers = [];
+        let selectedCustomer = null;
 
-            const db = window.firebaseDb;
-            const customersRef = db.ref('customers');
-            const paymentsRef = db.ref('payments');
+        // Load customers
+        customersRef.once('value', snap => {
+            customers = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d }));
+        });
 
-            const totalEl = document.getElementById('totalAmount');
-            const receivedEl = document.getElementById('receivedAmount');
-            const pendingEl = document.getElementById('pendingAmount');
-            const pendingTableBody = document.getElementById('pendingTableBody');
+        // Search customer
+        document.getElementById('searchCustomer').oninput = function () {
+            let val = this.value.toLowerCase();
+            let html = "";
 
-            function formatINR(x) {
-                return '₹' + Number(x || 0).toLocaleString('en-IN');
-            }
-
-            function formatDate(ts) {
-                return ts ? new Date(ts).toLocaleDateString() : '—';
-            }
-
-            /* 🔥 FILTER LOGIC */
-            const filterType = 'all'; // you can later connect UI
-
-            function filterByDate(date) {
-                let d = new Date(date);
-                let now = new Date();
-
-                if (filterType === 'today') {
-                    return d.toDateString() === now.toDateString();
-                }
-
-                if (filterType === 'month') {
-                    return d.getMonth() === now.getMonth() &&
-                        d.getFullYear() === now.getFullYear();
-                }
-
-                if (filterType === 'year') {
-                    return d.getFullYear() === now.getFullYear();
-                }
-
-                return true;
-            }
-
-            function renderDashboard(customers, payments) {
-
-                let total = 0;
-                let received = 0;
-
-                const perCustomer = {};
-
-                for (let id in payments) {
-                    let p = payments[id];
-                    if (!p) continue;
-
-                    if (!filterByDate(p.date)) continue;
-
-                    let t = Number(p.totalAmount || 0);
-                    let r = Number(p.receivedAmount || 0);
-
-                    total += t;
-                    received += r;
-
-                    if (!perCustomer[p.customerId]) {
-                        perCustomer[p.customerId] = {
-                            total: 0,
-                            received: 0,
-                            lastDate: 0
-                        };
-                    }
-
-                    perCustomer[p.customerId].total += t;
-                    perCustomer[p.customerId].received += r;
-
-                    if (p.date > perCustomer[p.customerId].lastDate) {
-                        perCustomer[p.customerId].lastDate = p.date;
-                    }
-                }
-
-                let pending = total - received;
-
-                totalEl.innerText = formatINR(total);
-                receivedEl.innerText = formatINR(received);
-                pendingEl.innerText = formatINR(pending);
-
-                /* 🔥 PENDING CUSTOMERS */
-                let list = [];
-
-                for (let cid in perCustomer) {
-                    let c = customers[cid] || {};
-
-                    let t = perCustomer[cid].total;
-                    let r = perCustomer[cid].received;
-                    let p = t - r;
-
-                    if (p > 0) {
-                        list.push({
-                            name: c.name || "Unknown",
-                            mobile: c.mobile || "—",
-                            pending: p,
-                            lastDate: perCustomer[cid].lastDate
-                        });
-                    }
-                }
-
-                list.sort((a, b) => b.pending - a.pending);
-
-                if (list.length === 0) {
-                    pendingTableBody.innerHTML =
-                        '<tr><td colspan="4">✨ No pending dues</td></tr>';
-                    return;
-                }
-
-                let html = '';
-
-                list.forEach(item => {
+            customers
+                .filter(c => c.name.toLowerCase().includes(val) || c.mobile.includes(val))
+                .forEach(c => {
                     html += `
-            <tr>
-                <td><strong>${item.name}</strong></td>
-                <td>${item.mobile}</td>
-                <td class="pending-amount">${formatINR(item.pending)}</td>
-                <td>${formatDate(item.lastDate)}</td>
-            </tr>`;
+        <div class="search-item" onclick="selectCustomer('${c.id}')">
+          <strong>${c.name}</strong><br>
+          <small>${c.mobile}</small>
+        </div>`;
                 });
 
-                pendingTableBody.innerHTML = html;
-            }
+            document.getElementById('results').innerHTML = html;
+        };
 
-            let customersData = {};
-            let paymentsData = {};
+        // Select customer
+        function selectCustomer(id) {
+            selectedCustomer = customers.find(c => c.id === id);
 
-            customersRef.on('value', snap => {
-                customersData = snap.val() || {};
-                renderDashboard(customersData, paymentsData);
+            document.getElementById('searchCustomer').value = selectedCustomer.name;
+            document.getElementById('results').innerHTML = "";
+        }
+
+        // Radio change
+        document.querySelectorAll('input[name="type"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                document.getElementById('receivedGroup').style.display =
+                    this.value === 'pending' ? 'block' : 'none';
             });
+        });
 
-            paymentsRef.on('value', snap => {
-                paymentsData = snap.val() || {};
-                renderDashboard(customersData, paymentsData);
+        // Save
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!selectedCustomer) return alert("Select customer");
+
+            let total = Number(document.getElementById('total').value);
+            let type = document.querySelector('input[name="type"]:checked').value;
+
+            let received = type === 'paid'
+                ? total
+                : Number(document.getElementById('received').value);
+
+            let data = {
+                customerId: selectedCustomer.id,
+                totalAmount: total,
+                receivedAmount: received,
+                pendingAmount: total - received,
+                date: new Date(document.getElementById('date').value).getTime()
+            };
+
+            paymentsRef.push(data).then(() => {
+                alert("Payment Saved");
+                window.location.href = "payments.html";
             });
-
-        })();
+        });
     </script>
+
 </body>
 
 </html>

@@ -4,22 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <title>VRK AGENCY | Add Payment</title>
+
     <link rel="stylesheet" href="css/style.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="js/firebase.js"></script>
 
     <style>
-        /* Center layout */
         .form-wrapper {
             display: flex;
             justify-content: center;
             margin-top: 40px;
         }
 
-        /* Card */
         .form-card {
             background: #ffffff;
             padding: 25px;
@@ -35,7 +34,6 @@
             margin-bottom: 20px;
         }
 
-        /* Form */
         .form-group {
             margin-bottom: 18px;
         }
@@ -54,7 +52,6 @@
             outline: none;
         }
 
-        /* Search dropdown */
         .search-results {
             margin-top: 5px;
             border-radius: 10px;
@@ -74,7 +71,6 @@
             background: #f3f3f3;
         }
 
-        /* Radio */
         .radio-group {
             display: flex;
             gap: 20px;
@@ -84,36 +80,30 @@
             cursor: pointer;
         }
 
-        /* Make form fit one screen */
         .modal-content {
             max-height: 90vh;
             overflow-y: auto;
             padding: 15px !important;
         }
 
-        /* Reduce spacing */
         .form-group {
             margin-bottom: 10px !important;
         }
 
-        /* Reduce input size */
         .form-group input,
         .form-group select {
             padding: 8px 10px !important;
             font-size: 14px;
         }
 
-        /* Reduce heading spacing */
         .modal-content h3 {
             margin-bottom: 10px;
         }
 
-        /* Button spacing */
         .btn-primary {
             padding: 10px 18px;
         }
 
-        /* Make modal centered properly */
         .modal {
             align-items: center;
             justify-content: center;
@@ -123,194 +113,189 @@
 
 <body>
 
-    <div class="app-layout">
+<div class="app-layout">
 
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo-area">
-                <h2>VRK AGENCY</h2>
-            </div>
-            <nav class="nav-menu">
-                <a onclick="goToPage('index.html')" class="nav-item">Dashboard</a>
-                <a onclick="goToPage('payments.html')" class="nav-item active">Payments</a>
-                <a onclick="goToPage('customers.html')" class="nav-item">Customers</a>
-            </nav>
-        </aside>
+    <aside class="sidebar">
+        <div class="logo-area">
+            <h2>VRK AGENCY</h2>
+        </div>
+        <nav class="nav-menu">
+            <a onclick="goToPage('index.html')" class="nav-item">Dashboard</a>
+            <a onclick="goToPage('payments.html')" class="nav-item active">Payments</a>
+            <a onclick="goToPage('customers.html')" class="nav-item">Customers</a>
+        </nav>
+    </aside>
 
-        <!-- Main -->
-        <main class="main-content">
+    <main class="main-content">
 
-            <header class="top-bar">
-                <h1>Add Payment</h1>
-                <button class="btn-primary" onclick="goToPage('payments.html')">← Back</button>
-            </header>
+        <header class="top-bar">
+            <h1>Add Payment</h1>
+            <button class="btn-primary" onclick="goToPage('payments.html')">← Back</button>
+        </header>
 
-            <div class="form-wrapper">
-                <div class="form-card">
+        <div class="form-wrapper">
+            <div class="form-card">
 
-                    <div class="form-header">
-                        <h2>Add New Payment</h2>
+                <div class="form-header">
+                    <h2>Add New Payment</h2>
+                </div>
+
+                <form id="paymentForm">
+
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>Customer *</label>
+                                <input type="text" id="searchCustomer" placeholder="Search name or mobile">
+                                <div id="results" class="search-results"></div>
+                            </div>
+                        </div>
+
+                        <div class="col">
+                            <div class="form-group">
+                                <label>Date *</label>
+                                <input type="date" id="date" required>
+                            </div>
+                        </div>
                     </div>
 
-                    <form id="paymentForm">
-                        <div>
-                            <div class="row">
-                                <div class="col">
-                                    <!-- Customer -->
-                                    <div class="form-group">
-                                        <label>Customer *</label>
-                                        <input type="text" id="searchCustomer" placeholder="Search name or mobile">
-                                        <div id="results" class="search-results"></div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <!-- Date -->
-                                    <div class="form-group">
-                                        <label>Date *</label>
-                                        <input type="date" id="date" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col">
-                                    <!-- Total -->
-                                    <div class="form-group">
-                                        <label>Total Amount (₹) *</label>
-                                        <input type="number" id="total" required>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <!-- Radio -->
-                                    <div class="form-group">
-                                        <label>Payment Type *</label>
-
-                                        <div class="radio-group">
-                                            <label>
-                                                <input type="radio" name="type" value="paid" checked> Paid
-                                            </label>
-
-                                            <label>
-                                                <input type="radio" name="type" value="pending"> Pending
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label>Total Amount (₹) *</label>
+                                <input type="number" id="total" required>
                             </div>
                         </div>
 
+                        <div class="col">
+                            <div class="form-group">
+                                <label>Payment Type *</label>
 
+                                <div class="radio-group">
+                                    <label>
+                                        <input type="radio" name="type" value="paid" checked> Paid
+                                    </label>
 
-
-                        <!-- Received -->
-                        <div class="form-group" id="receivedGroup" style="display:none;">
-                            <label>Received Amount (₹)</label>
-                            <input type="number" id="received">
+                                    <label>
+                                        <input type="radio" name="type" value="pending"> Pending
+                                    </label>
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        <button type="submit" class="btn-primary">Save Payment</button>
+                    <div class="form-group" id="receivedGroup" style="display:none;">
+                        <label>Received Amount (₹)</label>
+                        <input type="number" id="received">
+                    </div>
 
-                    </form>
+                    <button type="submit" class="btn-primary">Save Payment</button>
 
-                </div>
+                </form>
+
             </div>
+        </div>
 
-        </main>
-    </div>
+    </main>
+</div>
 
-    <script>
+<script>
 
-        // Restrict future dates
-        document.getElementById("date").max = new Date().toISOString().split("T")[0];
-        document.getElementById('paymentForm').addEventListener('submit', function (e) {
-            let selectedDate = new Date(document.getElementById('date').value);
-            let today = new Date();
+function goToPage(p){ window.location.href = p; }
 
-            today.setHours(0, 0, 0, 0);
+const db = window.firebaseDb;
+const customersRef = db.ref('customers');
+const paymentsRef = db.ref('payments');
 
-            if (selectedDate > today) {
-                alert("Future date not allowed");
-                return;
-            }
+let customers = [];
+let selectedCustomer = null;
 
-            // your existing code continues...
-        });
-        
-        function goToPage(p) { window.location.href = p; }
+/* 🔒 Restrict future date in picker */
+const dateInput = document.getElementById("date");
+dateInput.max = new Date().toISOString().split("T")[0];
 
-        const db = window.firebaseDb;
-        const customersRef = db.ref('customers');
-        const paymentsRef = db.ref('payments');
+/* Load customers */
+customersRef.once('value', snap => {
+    customers = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d }));
+});
 
-        let customers = [];
-        let selectedCustomer = null;
+/* Search */
+document.getElementById('searchCustomer').oninput = function () {
+    let val = this.value.toLowerCase();
+    let html = "";
 
-        // Load customers
-        customersRef.once('value', snap => {
-            customers = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d }));
-        });
-
-        // Search customer
-        document.getElementById('searchCustomer').oninput = function () {
-            let val = this.value.toLowerCase();
-            let html = "";
-
-            customers
-                .filter(c => c.name.toLowerCase().includes(val) || c.mobile.includes(val))
-                .forEach(c => {
-                    html += `
-        <div class="search-item" onclick="selectCustomer('${c.id}')">
-          <strong>${c.name}</strong><br>
-          <small>${c.mobile}</small>
-        </div>`;
-                });
-
-            document.getElementById('results').innerHTML = html;
-        };
-
-        // Select customer
-        function selectCustomer(id) {
-            selectedCustomer = customers.find(c => c.id === id);
-
-            document.getElementById('searchCustomer').value = selectedCustomer.name;
-            document.getElementById('results').innerHTML = "";
-        }
-
-        // Radio change
-        document.querySelectorAll('input[name="type"]').forEach(radio => {
-            radio.addEventListener('change', function () {
-                document.getElementById('receivedGroup').style.display =
-                    this.value === 'pending' ? 'block' : 'none';
-            });
+    customers
+        .filter(c => c.name.toLowerCase().includes(val) || c.mobile.includes(val))
+        .forEach(c => {
+            html += `
+            <div class="search-item" onclick="selectCustomer('${c.id}')">
+                <strong>${c.name}</strong><br>
+                <small>${c.mobile}</small>
+            </div>`;
         });
 
-        // Save
-        document.getElementById('paymentForm').addEventListener('submit', function (e) {
-            e.preventDefault();
+    document.getElementById('results').innerHTML = html;
+};
 
-            if (!selectedCustomer) return alert("Select customer");
+/* Select */
+function selectCustomer(id){
+    selectedCustomer = customers.find(c => c.id === id);
+    document.getElementById('searchCustomer').value = selectedCustomer.name;
+    document.getElementById('results').innerHTML = "";
+}
 
-            let total = Number(document.getElementById('total').value);
-            let type = document.querySelector('input[name="type"]:checked').value;
+/* Radio toggle */
+document.querySelectorAll('input[name="type"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+        document.getElementById('receivedGroup').style.display =
+            this.value === 'pending' ? 'block' : 'none';
+    });
+});
 
-            let received = type === 'paid'
-                ? total
-                : Number(document.getElementById('received').value);
+/* ✅ SINGLE SUBMIT HANDLER */
+document.getElementById('paymentForm').addEventListener('submit', function (e) {
+    e.preventDefault();
 
-            let data = {
-                customerId: selectedCustomer.id,
-                totalAmount: total,
-                receivedAmount: received,
-                pendingAmount: total - received,
-                date: new Date(document.getElementById('date').value).getTime()
-            };
+    const dateValue = dateInput.value;
+    const selectedDate = new Date(dateValue);
+    const today = new Date();
 
-            paymentsRef.push(data).then(() => {
-                alert("Payment Saved");
-                window.location.href = "payments.html";
-            });
-        });
-    </script>
+    today.setHours(0,0,0,0);
+    selectedDate.setHours(0,0,0,0);
+
+    if(selectedDate > today){
+        alert("Future date not allowed");
+        return;
+    }
+
+    if (!selectedCustomer) {
+        alert("Select customer");
+        return;
+    }
+
+    let total = Number(document.getElementById('total').value);
+    let type = document.querySelector('input[name="type"]:checked').value;
+
+    let received = type === 'paid'
+        ? total
+        : Number(document.getElementById('received').value);
+
+    let data = {
+        customerId: selectedCustomer.id,
+        totalAmount: total,
+        receivedAmount: received,
+        pendingAmount: total - received,
+        date: selectedDate.getTime()
+    };
+
+    paymentsRef.push(data).then(() => {
+        alert("Payment Saved");
+        window.location.href = "payments.html";
+    });
+
+});
+
+</script>
 
 </body>
-
 </html>
