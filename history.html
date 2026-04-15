@@ -56,7 +56,6 @@
         .modal-box input { padding: 8px; }
         .modal-actions { display: flex; justify-content: space-between; }
 
-        /* ✅ NEW COLORS (SAFE ADDITION) */
         .total { color:#007bff; font-weight:600; }
         .received { color:#28a745; font-weight:600; }
         .pending { color:#dc3545; font-weight:600; }
@@ -67,6 +66,20 @@
             background:#eafbea;
             padding:3px 8px;
             border-radius:6px;
+        }
+
+        /* NEW DELETE BUTTON */
+        .btn-delete {
+            background:#dc3545;
+            color:white;
+            border:none;
+            padding:5px 10px;
+            border-radius:6px;
+            cursor:pointer;
+        }
+
+        .btn-delete:hover {
+            background:#b02a37;
         }
     </style>
 </head>
@@ -119,15 +132,15 @@
 </header>
 
 <div class="filters-bar">
-    <select id="quickFilter" class="filter-select">
+    <select id="quickFilter">
         <option value="all">All</option>
         <option value="today">Today</option>
         <option value="month">This Month</option>
         <option value="year">This Year</option>
     </select>
 
-    <input type="date" id="fromDate" class="filter-input">
-    <input type="date" id="toDate" class="filter-input">
+    <input type="date" id="fromDate">
+    <input type="date" id="toDate">
 </div>
 
 <div class="table-container">
@@ -139,6 +152,7 @@
 <th>Total</th>
 <th>Received</th>
 <th>Pending</th>
+<th>Action</th> <!-- NEW -->
 </tr>
 </thead>
 <tbody id="body"></tbody>
@@ -151,13 +165,10 @@
 
 <script>
 
-/* DATE FORMAT */
+/* FORMAT */
 function formatDate(d){
     let date=new Date(d);
-    let day=String(date.getDate()).padStart(2,'0');
-    let month=String(date.getMonth()+1).padStart(2,'0');
-    let year=date.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()}`;
 }
 
 /* MODAL */
@@ -190,18 +201,25 @@ function savePending(){
 
     showToast("Payment added ✅","success");
     closePendingModal();
-    document.getElementById("receivedAmount").value="";
+}
+
+/* DELETE FUNCTION */
+function deletePayment(id){
+    if(confirm("Are you sure you want to delete this entry?")){
+        paymentsRef.child(id).remove()
+        .then(()=> showToast("Deleted successfully","success"))
+        .catch(()=> showToast("Delete failed","error"));
+    }
 }
 
 /* TOAST */
-function showToast(message,type="info"){
-    const toast=document.getElementById("toast");
-    toast.innerText=message;
-    toast.className="toast show "+type;
-    setTimeout(()=>toast.className="toast",3000);
+function showToast(msg,type="info"){
+    let t=document.getElementById("toast");
+    t.innerText=msg;
+    t.className="toast show "+type;
+    setTimeout(()=>t.className="toast",3000);
 }
 
-function alert_PDF(){ showToast("PDF export coming soon","info"); }
 function goToPage(p){ window.location.href=p; }
 
 const db=window.firebaseDb;
@@ -214,7 +232,7 @@ let customerPayments=[];
 
 function formatINR(x){ return "₹"+Number(x||0).toLocaleString('en-IN'); }
 
-/* FILTERS */
+/* FILTER */
 const quickFilter=document.getElementById('quickFilter');
 const fromDate=document.getElementById('fromDate');
 const toDate=document.getElementById('toDate');
@@ -228,87 +246,52 @@ function filterByDate(date){
     if(quickFilter.value==='year') return d.getFullYear()===now.getFullYear();
 
     if(fromDate.value && toDate.value){
-        let from=new Date(fromDate.value);
-        let to=new Date(toDate.value);
-        return d>=from && d<=to;
+        return d>=new Date(fromDate.value) && d<=new Date(toDate.value);
     }
 
     return true;
 }
 
-/* CUSTOMER */
-customersRef.once('value',snap=>{
-    let obj=snap.val()||{};
-    let customers=Object.entries(obj).map(([id,d])=>({id,...d}));
-
-    let customerData=customers.find(c=>c.id===customerId)||{};
-    document.getElementById('customerName').innerText=customerData.name||"Unknown";
-    document.getElementById('customerMobile').innerText=customerData.mobile||"";
-});
-
-/* PAYMENTS */
+/* DATA */
 paymentsRef.on('value',snap=>{
     let obj=snap.val()||{};
-    let payments=Object.entries(obj).map(([id,d])=>({id,...d}));
-
-    customerPayments=payments
+    customerPayments=Object.entries(obj).map(([id,d])=>({id,...d}))
         .filter(p=>p.customerId===customerId)
         .sort((a,b)=>a.date-b.date);
 
     render();
 });
 
-/* UPDATED RENDER */
+/* RENDER */
 function render(){
     let html="";
-    let total=0;
-    let received=0;
+    let total=0,received=0;
 
     customerPayments
-        .filter(p=>filterByDate(p.date))
-        .forEach(p=>{
-            total+=Number(p.totalAmount||0);
-            received+=Number(p.receivedAmount||0);
+    .filter(p=>filterByDate(p.date))
+    .forEach(p=>{
+        total+=Number(p.totalAmount||0);
+        received+=Number(p.receivedAmount||0);
 
-            let pending=Math.max(0,total-received);
-            let pendingDisplay = pending===0
-                ? `<span class="cleared">Cleared</span>`
-                : `<span class="pending">${formatINR(pending)}</span>`;
+        let pending=Math.max(0,total-received);
 
-            html+=`
-            <tr>
-                <td>${formatDate(p.date)}</td>
-                <td class="total">${formatINR(p.totalAmount)}</td>
-                <td class="received">${formatINR(p.receivedAmount)}</td>
-                <td>${pendingDisplay}</td>
-            </tr>`;
-        });
+        html+=`
+        <tr>
+            <td>${formatDate(p.date)}</td>
+            <td class="total">${formatINR(p.totalAmount)}</td>
+            <td class="received">${formatINR(p.receivedAmount)}</td>
+            <td>${pending===0 ? '<span class="cleared">Cleared</span>' : formatINR(pending)}</td>
+            <td><button class="btn-delete" onclick="deletePayment('${p.id}')">Delete</button></td>
+        </tr>`;
+    });
 
     document.getElementById('body').innerHTML =
-        html || `<tr><td colspan="4">No data</td></tr>`;
+        html || `<tr><td colspan="5">No data</td></tr>`;
 }
 
 quickFilter.onchange=render;
 fromDate.onchange=render;
 toDate.onchange=render;
-
-/* WHATSAPP */
-function shareWhatsApp(){
-    let total=0,received=0;
-
-    customerPayments.forEach(p=>{
-        total+=Number(p.totalAmount);
-        received+=Number(p.receivedAmount);
-    });
-
-    let pending=Math.max(0,total-received);
-
-    let msg = pending===0
-        ? "✅ Your account is fully cleared. Thank you!"
-        : `Dear Customer,\nPending amount: ${formatINR(pending)}\nPlease clear dues.\nVRK AGENCY`;
-
-    window.open("https://wa.me/?text="+encodeURIComponent(msg));
-}
 
 </script>
 

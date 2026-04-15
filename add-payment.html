@@ -218,6 +218,23 @@
     </div>
 
     <script>
+
+        // Restrict future dates
+        document.getElementById("date").max = new Date().toISOString().split("T")[0];
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            let selectedDate = new Date(document.getElementById('date').value);
+            let today = new Date();
+
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate > today) {
+                alert("Future date not allowed");
+                return;
+            }
+
+            // your existing code continues...
+        });
+        
         function goToPage(p) { window.location.href = p; }
 
         const db = window.firebaseDb;
