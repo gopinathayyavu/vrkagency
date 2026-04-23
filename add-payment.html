@@ -366,16 +366,27 @@
         let selectedCustomer = null;
         let productItems = [];
 
-        // FIX 1: Date restriction - allow today's date
+        // ===================== DATE FIX (TIMEZONE-SAFE) =====================
+        // Helper: Get today's date in local YYYY-MM-DD format (en-CA gives ISO-like local date)
+        function getLocalTodayString() {
+            const today = new Date();
+            return today.toLocaleDateString('en-CA'); // returns YYYY-MM-DL in local timezone
+        }
+
+        // Set max date attribute to today (local) - prevents picking future dates in browser picker
         const dateInput = document.getElementById('date');
-        // Set max date to today (allows today and past dates)
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        dateInput.max = `${yyyy}-${mm}-${dd}`;
-        // Set default date to today
-        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        const todayLocalStr = getLocalTodayString();
+        dateInput.max = todayLocalStr;
+        // Set default value to today's local date
+        dateInput.value = todayLocalStr;
+
+        // Future date validation using LOCAL date strings (no timezone ambiguity)
+        function isFutureDate(dateString) {
+            // dateString format: YYYY-MM-DD
+            const todayStr = getLocalTodayString();
+            return dateString > todayStr;
+        }
+        // ===============================================================
 
         async function loadData() {
             const custSnap = await customersRef.once('value');
@@ -463,14 +474,10 @@
             const suggestionsDiv = rowDiv.querySelector('.product-suggestions');
             const qtyInput = rowDiv.querySelector('.qty-input');
 
-            // FIX 2: Quantity input - allow direct typing and handle all input methods
+            // Quantity input: real-time update + final validation
             qtyInput.addEventListener('input', function (e) {
                 let newQty = parseInt(e.target.value);
-                // Allow empty or invalid to be treated as 1, but don't override while typing
-                if (isNaN(newQty) || newQty === null || e.target.value === '') {
-                    // Don't update - let user finish typing
-                    return;
-                }
+                if (isNaN(newQty) || e.target.value === '') return;
                 if (newQty < 1) newQty = 1;
                 const idxAttr = parseInt(qtyInput.getAttribute('data-idx'));
                 if (productItems[idxAttr] && productItems[idxAttr].productId) {
@@ -478,7 +485,6 @@
                     productItems[idxAttr].quantity = newQty;
                     productItems[idxAttr].lineTotal = prodPrice * newQty;
                     updateGrandTotal();
-                    // Update the line total display without full rerender
                     const lineTotalInput = rowDiv.querySelector('.field-xs input');
                     if (lineTotalInput) {
                         lineTotalInput.value = `₹${(prodPrice * newQty).toLocaleString('en-IN')}`;
@@ -489,7 +495,6 @@
                 }
             });
 
-            // Also handle change event to ensure final value is valid
             qtyInput.addEventListener('change', function (e) {
                 let newQty = parseInt(e.target.value);
                 if (isNaN(newQty) || newQty < 1) {
@@ -601,11 +606,12 @@
             if (!selectedCustomer) { showToastMsg("Please select a customer", true); return; }
             const dateVal = dateInput.value;
             if (!dateVal) { showToastMsg("Select date", true); return; }
-            const selectedDateObj = new Date(dateVal);
-            const todayClear = new Date();
-            todayClear.setHours(0, 0, 0, 0);
-            // FIX 1: Allow today's date (<= instead of <)
-            if (selectedDateObj > todayClear) { showToastMsg("Future date not allowed", true); return; }
+
+            // ***** FIXED: timezone-safe future date validation *****
+            if (isFutureDate(dateVal)) {
+                showToastMsg("Future date not allowed (cannot select tomorrow or later)", true);
+                return;
+            }
 
             const validProducts = productItems.filter(p => p.productId && p.quantity > 0);
             if (validProducts.length === 0) { showToastMsg("Add at least one product", true); return; }
@@ -635,6 +641,11 @@
                 lineTotal: p.price * p.quantity
             }));
 
+            // Store date as timestamp (start of day in local time to avoid DB confusion)
+            const [year, month, day] = dateVal.split('-').map(Number);
+            const localDateObj = new Date(year, month - 1, day, 0, 0, 0, 0);
+            const timestampLocal = localDateObj.getTime();
+
             const paymentObj = {
                 customerId: selectedCustomer.id,
                 customerName: selectedCustomer.name,
@@ -642,7 +653,7 @@
                 totalAmount: totalAmount,
                 receivedAmount: receivedAmt,
                 pendingAmount: pendingAmt,
-                date: selectedDateObj.getTime(),
+                date: timestampLocal,
                 dateString: dateVal,
                 paymentType: paymentType,
                 products: productsSnapshot,
