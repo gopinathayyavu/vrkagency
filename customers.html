@@ -59,7 +59,7 @@
     <main class="main-content">
       <header class="top-bar">
         <h1>Customers</h1>
-        <button class="btn-primary" id="openAddCustomerBtn">+ Add Customer</button>
+        <!-- Add Customer button removed as requested -->
       </header>
 
       <div class="table-container">
@@ -82,13 +82,13 @@
         </div>
       </div>
 
-      <!-- Modal -->
-      <div id="addCustomerModal" class="modal">
+      <!-- Modal for editing only (add functionality removed) -->
+      <div id="editCustomerModal" class="modal">
         <div class="modal-content">
-          <span class="close-modal" id="closeAddCustomer">&times;</span>
-          <h3 id="modalTitle">Add New Customer</h3>
+          <span class="close-modal" id="closeEditModal">&times;</span>
+          <h3 id="modalTitle">Edit Customer</h3>
 
-          <form id="addCustomerForm">
+          <form id="editCustomerForm">
             <input type="hidden" id="editId">
 
             <div class="form-group">
@@ -103,10 +103,10 @@
 
             <div class="form-group">
               <label>Place</label>
-              <input type="text"  autocomplete="off" id="custPlace">
+              <input type="text" autocomplete="off" id="custPlace">
             </div>
 
-            <button type="submit" class="btn-primary">Save Customer</button>
+            <button type="submit" class="btn-primary">Update Customer</button>
           </form>
         </div>
       </div>
@@ -119,15 +119,13 @@
 
   <script>
     (function () {
-
       const db = window.firebaseDb;
       const customersRef = db.ref('customers');
 
       const tableBody = document.getElementById('customersTableBody');
-      const addModal = document.getElementById('addCustomerModal');
-      const openBtn = document.getElementById('openAddCustomerBtn');
-      const closeBtn = document.getElementById('closeAddCustomer');
-      const addForm = document.getElementById('addCustomerForm');
+      const editModal = document.getElementById('editCustomerModal');
+      const closeBtn = document.getElementById('closeEditModal');
+      const editForm = document.getElementById('editCustomerForm');
 
       const editIdInput = document.getElementById('editId');
       const modalTitle = document.getElementById('modalTitle');
@@ -137,95 +135,189 @@
         return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
       }
 
-      /* DELETE */
+      /* DELETE customer */
       function deleteCustomer(id) {
-        if (confirm("Delete this customer?")) {
-          customersRef.child(id).remove();
+        if (confirm("Delete this customer? This action cannot be undone.")) {
+          customersRef.child(id).remove()
+            .then(() => {
+              // Optional: show toast or nothing
+            })
+            .catch(err => alert("Error deleting: " + err.message));
         }
       }
 
-      /* EDIT OPEN */
+      /* EDIT: open modal with customer data */
       function editCustomer(id, name, mobile, place) {
-        addModal.style.display = 'flex';
+        editModal.style.display = 'flex';
         modalTitle.innerText = "Edit Customer";
-
         editIdInput.value = id;
         document.getElementById('custName').value = name;
         document.getElementById('custMobile').value = mobile;
-        document.getElementById('custPlace').value = place;
+        document.getElementById('custPlace').value = place || '';
       }
 
-      /* RENDER */
+      /* RENDER customers table with Edit & Delete buttons */
       function renderCustomers(snapshot) {
         const customers = snapshot.val() || {};
         const entries = Object.entries(customers);
 
         if (entries.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="4">No customers</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="4">No customers found</td></tr>';
           return;
         }
 
         let html = '';
-
         entries.forEach(([id, c]) => {
           html += `
-          <tr>
-            <td><strong>${escapeHtml(c.name)}</strong></td>
-            <td>${escapeHtml(c.mobile)}</td>
-            <td>${escapeHtml(c.place) || '—'}</td>
-            <td>
-              <button class="btn-edit" onclick="editCustomer('${id}','${c.name}','${c.mobile}','${c.place || ''}')">Edit</button>
-              <button class="btn-delete" onclick="deleteCustomer('${id}')">Delete</button>
-            </td>
-          </tr>`;
+            <tr>
+              <td><strong>${escapeHtml(c.name)}</strong></td>
+              <td>${escapeHtml(c.mobile)}</td>
+              <td>${escapeHtml(c.place) || '—'}</td>
+              <td>
+                <button class="btn-edit" onclick="editCustomer('${id}','${escapeHtml(c.name)}','${escapeHtml(c.mobile)}','${escapeHtml(c.place || '')}')">Edit</button>
+                <button class="btn-delete" onclick="deleteCustomer('${id}')">Delete</button>
+              </td>
+            </tr>
+          `;
         });
-
         tableBody.innerHTML = html;
       }
 
+      // Real-time listener
       customersRef.on('value', renderCustomers);
 
-      /* MODAL */
-      openBtn.onclick = () => {
-        addModal.style.display = 'flex';
-        modalTitle.innerText = "Add New Customer";
-        addForm.reset();
-        editIdInput.value = "";
-      };
+      /* MODAL close handlers */
+      closeBtn.onclick = () => { editModal.style.display = 'none'; };
+      window.onclick = e => { if (e.target === editModal) editModal.style.display = 'none'; };
 
-      closeBtn.onclick = () => addModal.style.display = 'none';
-      window.onclick = e => { if (e.target === addModal) addModal.style.display = 'none'; };
-
-      /* SAVE / UPDATE */
-      addForm.addEventListener('submit', e => {
+      /* UPDATE customer (edit form submit) */
+      editForm.addEventListener('submit', e => {
         e.preventDefault();
-
         const id = editIdInput.value;
+        if (!id) return; // Should never happen since add is removed
+
         const name = document.getElementById('custName').value.trim();
         const mobile = document.getElementById('custMobile').value.trim();
         const place = document.getElementById('custPlace').value.trim();
 
-        if (!name || !mobile) return alert("Name & Mobile required");
-
-        const data = { name, mobile, place };
-
-        if (id) {
-          customersRef.child(id).update(data);
-        } else {
-          customersRef.push({ ...data, createdAt: Date.now() });
+        if (!name || !mobile) {
+          alert("Name and Mobile are required");
+          return;
         }
 
-        addModal.style.display = 'none';
-        addForm.reset();
+        customersRef.child(id).update({ name, mobile, place })
+          .then(() => {
+            editModal.style.display = 'none';
+            editForm.reset();
+          })
+          .catch(err => alert("Update failed: " + err.message));
       });
 
-      /* GLOBAL */
+      // Expose functions globally for onclick handlers
       window.deleteCustomer = deleteCustomer;
       window.editCustomer = editCustomer;
 
     })();
   </script>
 
+  <!-- Basic modal styles (if not already in style.css) -->
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      width: 400px;
+      max-width: 90%;
+      position: relative;
+    }
+
+    .close-modal {
+      position: absolute;
+      right: 20px;
+      top: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #aaa;
+    }
+
+    .close-modal:hover {
+      color: black;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .btn-primary {
+      background: #0d6efd;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #0b5ed7;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .responsive-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .responsive-table th,
+    .responsive-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .responsive-table th {
+      background: #f8fafc;
+      font-weight: 600;
+    }
+  </style>
 </body>
 
 </html>

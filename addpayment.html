@@ -177,6 +177,7 @@
             text-align: center;
         }
 
+        /* Remove spinner arrows but keep typing functionality */
         .qty-input::-webkit-inner-spin-button,
         .qty-input::-webkit-outer-spin-button {
             opacity: 0.5;
@@ -242,6 +243,11 @@
             margin-top: 6px;
         }
 
+        .radio-group label {
+            font-weight: 500;
+            cursor: pointer;
+        }
+
         .btn-save {
             background: #0d6efd;
             color: white;
@@ -276,35 +282,6 @@
         .field {
             position: relative;
         }
-
-        /* New customer card styles */
-        .customer-type-toggle {
-            background: #f8fafc;
-            border-radius: 20px;
-            padding: 12px 18px;
-            margin-bottom: 20px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .toggle-options {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 15px;
-        }
-
-        .toggle-options label {
-            font-weight: 600;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-
-        .new-customer-fields {
-            background: white;
-            border-radius: 16px;
-            padding: 15px;
-            border: 1px solid #cbd5e1;
-            margin-top: 10px;
-        }
     </style>
 </head>
 
@@ -330,66 +307,31 @@
             <div class="form-wrapper">
                 <div class="form-card">
                     <form id="paymentForm">
-                        <!-- Customer Type Toggle (Existing vs New) -->
-                        <div class="customer-type-toggle">
-                            <div class="toggle-options">
-                                <label><input type="radio" name="customerType" value="existing" checked> Existing
-                                    Customer</label>
-                                <label><input type="radio" name="customerType" value="new"> New Customer</label>
-                            </div>
-
-                            <!-- Existing Customer Section -->
-                            <div id="existingCustomerSection">
+                        <div class="row g-3">
+                            <div class="col-md-7">
                                 <div class="form-group search-wrapper">
-                                    <label>Search Customer *</label>
+                                    <label>Customer *</label>
                                     <input type="text" id="searchCustomer" placeholder="Search by name or mobile..."
                                         autocomplete="off">
                                     <div id="customerResults" class="search-results"></div>
                                 </div>
                             </div>
-
-                            <!-- New Customer Section (hidden by default) -->
-                            <div id="newCustomerSection" style="display: none;">
-                                <div class="new-customer-fields">
-                                    <div class="form-group">
-                                        <label>Customer Name *</label>
-                                        <input type="text" id="newCustName" placeholder="Full name" autocomplete="off">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Mobile Number *</label>
-                                        <input type="tel" id="newCustMobile" placeholder="10-digit mobile"
-                                            autocomplete="off">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Place</label>
-                                        <input type="text" id="newCustPlace" placeholder="Enter the place"
-                                            autocomplete="off">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Date Field -->
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-12">
+                            <div class="col-md-5">
                                 <div class="form-group"><label>Date *</label><input type="date" id="date" required>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Products Section -->
                         <div style="margin: 20px 0 10px 0;"><strong>Products</strong> <span
                                 style="font-size:12px; color:#475569;">(search & add each product)</span></div>
                         <div id="productsList"></div>
                         <button type="button" id="addProductBtn" class="add-btn">+ Add another product</button>
 
-                        <!-- Grand Total -->
                         <div class="summary-card">
                             <span style="font-weight:600;">GRAND TOTAL</span>
                             <span class="total-amount-text" id="grandTotalDisplay">₹0</span>
                         </div>
 
-                        <!-- Payment Type -->
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-group"><label>Payment Type</label>
@@ -412,7 +354,6 @@
         </main>
     </div>
     <div id="toastMsg" class="toast-custom"></div>
-
     <script>
         function goToPage(p) { window.location.href = p; }
         const db = window.firebaseDb;
@@ -422,64 +363,31 @@
 
         let customersList = [];
         let allProductsList = [];
-        let selectedCustomer = null;      // for existing customer flow
+        let selectedCustomer = null;
         let productItems = [];
 
-        // DOM elements for customer type toggle
-        const existingSection = document.getElementById('existingCustomerSection');
-        const newSection = document.getElementById('newCustomerSection');
-        const custTypeRadios = document.querySelectorAll('input[name="customerType"]');
-        const searchCustomerInput = document.getElementById('searchCustomer');
-        const custResultsDiv = document.getElementById('customerResults');
-
-        // New customer input fields
-        const newCustName = document.getElementById('newCustName');
-        const newCustMobile = document.getElementById('newCustMobile');
-        const newCustPlace = document.getElementById('newCustPlace');
-
         // ===================== DATE FIX (TIMEZONE-SAFE) =====================
+        // Helper: Get today's date in local YYYY-MM-DD format (en-CA gives ISO-like local date)
         function getLocalTodayString() {
             const today = new Date();
-            return today.toLocaleDateString('en-CA');
+            return today.toLocaleDateString('en-CA'); // returns YYYY-MM-DL in local timezone
         }
+
+        // Set max date attribute to today (local) - prevents picking future dates in browser picker
         const dateInput = document.getElementById('date');
         const todayLocalStr = getLocalTodayString();
         dateInput.max = todayLocalStr;
+        // Set default value to today's local date
         dateInput.value = todayLocalStr;
 
+        // Future date validation using LOCAL date strings (no timezone ambiguity)
         function isFutureDate(dateString) {
+            // dateString format: YYYY-MM-DD
             const todayStr = getLocalTodayString();
             return dateString > todayStr;
         }
         // ===============================================================
 
-        // Toggle between existing and new customer UI
-        function toggleCustomerType() {
-            const isExisting = document.querySelector('input[name="customerType"]:checked').value === 'existing';
-            if (isExisting) {
-                existingSection.style.display = 'block';
-                newSection.style.display = 'none';
-                // Clear new customer fields
-                newCustName.value = '';
-                newCustMobile.value = '';
-                newCustPlace.value = '';
-                selectedCustomer = null;
-                searchCustomerInput.value = '';
-                custResultsDiv.innerHTML = '';
-            } else {
-                existingSection.style.display = 'none';
-                newSection.style.display = 'block';
-                // Clear existing customer selection
-                selectedCustomer = null;
-                searchCustomerInput.value = '';
-                custResultsDiv.innerHTML = '';
-            }
-        }
-
-        custTypeRadios.forEach(radio => radio.addEventListener('change', toggleCustomerType));
-        toggleCustomerType(); // initial state
-
-        // Load customers and products
         async function loadData() {
             const custSnap = await customersRef.once('value');
             customersList = Object.entries(custSnap.val() || {}).map(([id, c]) => ({ id, ...c }));
@@ -488,31 +396,27 @@
             renderAllProductRows();
         }
         loadData();
-
-        // Real-time product updates
         productsRef.on('value', snap => {
             allProductsList = Object.entries(snap.val() || {}).map(([id, p]) => ({ id, name: p.name, price: Number(p.price) || 0, unit: p.unit || 'pc', quantity: p.quantity || 0 }));
             renderAllProductRows();
         });
 
-        // Customer search for existing flow
-        searchCustomerInput.oninput = function () {
-            if (document.querySelector('input[name="customerType"]:checked').value !== 'existing') return;
+        const custSearch = document.getElementById('searchCustomer');
+        const custResultsDiv = document.getElementById('customerResults');
+        custSearch.oninput = function () {
             let val = this.value.toLowerCase().trim();
             if (!val) { custResultsDiv.innerHTML = ""; return; }
             let html = "";
             customersList.filter(c => c.name.toLowerCase().includes(val) || (c.mobile && c.mobile.includes(val)))
-                .forEach(c => { html += `<div class="search-item" onclick="selectCustomer('${c.id}')"><strong>${escapeHtml(c.name)}</strong> <span style="color:#64748b;">${c.mobile || ''}</span></div>`; });
+                .forEach(c => { html += `<div class="search-item" onclick="selectCustomer('${c.id}')"><strong>${c.name}</strong> <span style="color:#64748b;">${c.mobile || ''}</span></div>`; });
             custResultsDiv.innerHTML = html;
         };
-
-        window.selectCustomer = function (id) {
+        function selectCustomer(id) {
             selectedCustomer = customersList.find(c => c.id === id);
-            searchCustomerInput.value = selectedCustomer.name;
+            custSearch.value = selectedCustomer.name;
             custResultsDiv.innerHTML = "";
-        };
+        }
 
-        // Product rows management (same as original)
         function renderAllProductRows() {
             const container = document.getElementById('productsList');
             if (!container) return;
@@ -570,6 +474,7 @@
             const suggestionsDiv = rowDiv.querySelector('.product-suggestions');
             const qtyInput = rowDiv.querySelector('.qty-input');
 
+            // Quantity input: real-time update + final validation
             qtyInput.addEventListener('input', function (e) {
                 let newQty = parseInt(e.target.value);
                 if (isNaN(newQty) || e.target.value === '') return;
@@ -696,81 +601,18 @@
             setTimeout(() => { toast.style.opacity = '0'; }, 2500);
         }
 
-        // Helper to create a new customer in Firebase and return its ID
-        async function createNewCustomer(name, mobile, place) {
-            const newCustomerData = {
-                name: name.trim(),
-                mobile: mobile.trim(),
-                place: place.trim() || '',
-                createdAt: Date.now()
-            };
-            const newRef = await customersRef.push(newCustomerData);
-            // Also update local customersList for future selections (optional but good for UX)
-            customersList.push({ id: newRef.key, ...newCustomerData });
-            return { id: newRef.key, data: newCustomerData };
-        }
-
-        // Form submission
         document.getElementById('paymentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            let finalCustomerId = null;
-            let finalCustomerName = '';
-            let finalCustomerMobile = '';
-
-            const isExisting = document.querySelector('input[name="customerType"]:checked').value === 'existing';
-
-            if (isExisting) {
-                // Existing customer validation
-                if (!selectedCustomer) {
-                    showToastMsg("Please select an existing customer from the list", true);
-                    return;
-                }
-                finalCustomerId = selectedCustomer.id;
-                finalCustomerName = selectedCustomer.name;
-                finalCustomerMobile = selectedCustomer.mobile || '';
-            } else {
-                // New customer: validate and create
-                const name = newCustName.value.trim();
-                const mobile = newCustMobile.value.trim();
-                if (!name) {
-                    showToastMsg("Customer name is required", true);
-                    return;
-                }
-                if (!mobile) {
-                    showToastMsg("Mobile number is required", true);
-                    return;
-                }
-                // Optional: basic mobile validation (digits only, length 10)
-                const mobileDigits = mobile.replace(/\D/g, '');
-                if (mobileDigits.length < 8) {
-                    showToastMsg("Please enter a valid mobile number", true);
-                    return;
-                }
-                const place = newCustPlace.value.trim();
-
-                showToastMsg("Creating new customer...", false);
-                try {
-                    const newCust = await createNewCustomer(name, mobile, place);
-                    finalCustomerId = newCust.id;
-                    finalCustomerName = newCust.data.name;
-                    finalCustomerMobile = newCust.data.mobile;
-                    showToastMsg("Customer created successfully", false);
-                } catch (err) {
-                    showToastMsg("Failed to create customer: " + err.message, true);
-                    return;
-                }
-            }
-
-            // Date validation
+            if (!selectedCustomer) { showToastMsg("Please select a customer", true); return; }
             const dateVal = dateInput.value;
             if (!dateVal) { showToastMsg("Select date", true); return; }
+
+            // ***** FIXED: timezone-safe future date validation *****
             if (isFutureDate(dateVal)) {
-                showToastMsg("Future date not allowed", true);
+                showToastMsg("Future date not allowed (cannot select tomorrow or later)", true);
                 return;
             }
 
-            // Products validation
             const validProducts = productItems.filter(p => p.productId && p.quantity > 0);
             if (validProducts.length === 0) { showToastMsg("Add at least one product", true); return; }
 
@@ -799,14 +641,15 @@
                 lineTotal: p.price * p.quantity
             }));
 
+            // Store date as timestamp (start of day in local time to avoid DB confusion)
             const [year, month, day] = dateVal.split('-').map(Number);
             const localDateObj = new Date(year, month - 1, day, 0, 0, 0, 0);
             const timestampLocal = localDateObj.getTime();
 
             const paymentObj = {
-                customerId: finalCustomerId,
-                customerName: finalCustomerName,
-                customerMobile: finalCustomerMobile,
+                customerId: selectedCustomer.id,
+                customerName: selectedCustomer.name,
+                customerMobile: selectedCustomer.mobile || '',
                 totalAmount: totalAmount,
                 receivedAmount: receivedAmt,
                 pendingAmount: pendingAmt,

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRK AGENCY | Customers</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="js/firebase.js"></script>
+
+    <style>
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-delete:hover {
+            background: #b02a37;
+        }
+
+        .btn-edit:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-layout">
+
+        <aside class="sidebar">
+            <div class="logo-area">
+                <h2>VRK AGENCY</h2>
+            </div>
+            <nav class="nav-menu">
+                <a onclick="goToPage('index.html')" class="nav-item">Dashboard</a>
+                <a onclick="goToPage('payments.html')" class="nav-item">Payments</a>
+                <a onclick="goToPage('customers.html')" class="nav-item active">Customers</a>
+                <a onclick="goToPage('products.html')" class="nav-item">Products</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Customers</h1>
+                <button class="btn-primary" id="openAddCustomerBtn">+ Add Customer</button>
+            </header>
+
+            <div class="table-container">
+                <div class="responsive-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Mobile</th>
+                                <th>Place</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody">
+                            <tr>
+                                <td colspan="4">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal -->
+            <div id="addCustomerModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal" id="closeAddCustomer">&times;</span>
+                    <h3 id="modalTitle">Add New Customer</h3>
+
+                    <form id="addCustomerForm">
+                        <input type="hidden" id="editId">
+
+                        <div class="form-group">
+                            <label>Name *</label>
+                            <input type="text" autocomplete="off" id="custName" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mobile *</label>
+                            <input type="tel" autocomplete="off" id="custMobile" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Place</label>
+                            <input type="text" autocomplete="off" id="custPlace">
+                        </div>
+
+                        <button type="submit" class="btn-primary">Save Customer</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function goToPage(p) { window.location.href = p; }
+    </script>
+
+    <script>
+        (function () {
+
+            const db = window.firebaseDb;
+            const customersRef = db.ref('customers');
+
+            const tableBody = document.getElementById('customersTableBody');
+            const addModal = document.getElementById('addCustomerModal');
+            const openBtn = document.getElementById('openAddCustomerBtn');
+            const closeBtn = document.getElementById('closeAddCustomer');
+            const addForm = document.getElementById('addCustomerForm');
+
+            const editIdInput = document.getElementById('editId');
+            const modalTitle = document.getElementById('modalTitle');
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+            }
+
+            /* DELETE */
+            function deleteCustomer(id) {
+                if (confirm("Delete this customer?")) {
+                    customersRef.child(id).remove();
+                }
+            }
+
+            /* EDIT OPEN */
+            function editCustomer(id, name, mobile, place) {
+                addModal.style.display = 'flex';
+                modalTitle.innerText = "Edit Customer";
+
+                editIdInput.value = id;
+                document.getElementById('custName').value = name;
+                document.getElementById('custMobile').value = mobile;
+                document.getElementById('custPlace').value = place;
+            }
+
+            /* RENDER */
+            function renderCustomers(snapshot) {
+                const customers = snapshot.val() || {};
+                const entries = Object.entries(customers);
+
+                if (entries.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4">No customers</td></tr>';
+                    return;
+                }
+
+                let html = '';
+
+                entries.forEach(([id, c]) => {
+                    html += `
+          <tr>
+            <td><strong>${escapeHtml(c.name)}</strong></td>
+            <td>${escapeHtml(c.mobile)}</td>
+            <td>${escapeHtml(c.place) || '—'}</td>
+            <td>
+              <button class="btn-edit" onclick="editCustomer('${id}','${c.name}','${c.mobile}','${c.place || ''}')">Edit</button>
+              <button class="btn-delete" onclick="deleteCustomer('${id}')">Delete</button>
+            </td>
+          </tr>`;
+                });
+
+                tableBody.innerHTML = html;
+            }
+
+            customersRef.on('value', renderCustomers);
+
+            /* MODAL */
+            openBtn.onclick = () => {
+                addModal.style.display = 'flex';
+                modalTitle.innerText = "Add New Customer";
+                addForm.reset();
+                editIdInput.value = "";
+            };
+
+            closeBtn.onclick = () => addModal.style.display = 'none';
+            window.onclick = e => { if (e.target === addModal) addModal.style.display = 'none'; };
+
+            /* SAVE / UPDATE */
+            addForm.addEventListener('submit', e => {
+                e.preventDefault();
+
+                const id = editIdInput.value;
+                const name = document.getElementById('custName').value.trim();
+                const mobile = document.getElementById('custMobile').value.trim();
+                const place = document.getElementById('custPlace').value.trim();
+
+                if (!name || !mobile) return alert("Name & Mobile required");
+
+                const data = { name, mobile, place };
+
+                if (id) {
+                    customersRef.child(id).update(data);
+                } else {
+                    customersRef.push({ ...data, createdAt: Date.now() });
+                }
+
+                addModal.style.display = 'none';
+                addForm.reset();
+            });
+
+            /* GLOBAL */
+            window.deleteCustomer = deleteCustomer;
+            window.editCustomer = editCustomer;
+
+        })();
+    </script>
+
+</body>
+
+</html>
